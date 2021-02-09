@@ -1,0 +1,2 @@
+openpyxl==3.0.6 # Library to read and write Excel files
+pandas==1.1.1 # utils
