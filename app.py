@@ -3,7 +3,7 @@ from openpyxl import Workbook
 
 from utils import save_bom
 
-INPUT_EXCEL = 'data/input.xlsx'
+INPUT_EXCEL = 'data/secondinput.xlsx'
 OUTPUT_EXCEL = 'data/output.xlsx'
 
 BASE_LEVEL = '.1'
@@ -18,28 +18,40 @@ finished_goods = df['Item Name'].unique()
 
 for finished_good in finished_goods:
     finished_good_df = df[df['Item Name'] == finished_good]
-    # get unique levels for a finished good
-    levels = finished_good_df['Level'].unique()
+    # save bom for primary good, eg fan, toy etc
+    raw_materials = finished_good_df.loc[finished_good_df['Level'] == BASE_LEVEL]
+    save_bom(
+        finished_good,
+        raw_materials,
+        workbook
+    )
 
-    composite_rawmaterials = {}
-    # get all composite raw materials with their level
-    for level_index in range(len(levels)-1):
-        for row_index in range(len(finished_good_df.index)-1):
-            if(finished_good_df.iloc[row_index]['Level'] == levels[level_index]
-               and finished_good_df.iloc[row_index+1]['Level'] == levels[level_index+1]):
-                composite_rawmaterials[levels[level_index+1]] = finished_good_df.iloc[row_index]['Raw material']
+    # reverse the order of dataframe
+    finished_good_df = finished_good_df.iloc[::-1]
 
-    for level in levels:
-        for row_index in range(1, len(finished_good_df.index)+1):
-            if level == finished_good_df.iloc[row_index]['Level']:
-                raw_materials = finished_good_df.loc[finished_good_df['Level'] == level]
-                if level == BASE_LEVEL:
-                    item = finished_good_df.iloc[row_index-1]['Item Name']
-                else:
-                    item = finished_good_df.iloc[row_index-1]['Raw material']
-                save_bom(item, raw_materials, workbook)
-                break
+    no_of_secondary_rawmaterial = 0
+
+    for row_index in range(len(finished_good_df.index)-1):
+        current_level = finished_good_df.iloc[row_index]['Level']
+        next_level = finished_good_df.iloc[row_index+1]['Level']
+
+        if current_level == BASE_LEVEL:
+            continue
+        else:
+            if current_level != next_level:
+                raw_material = finished_good_df.iloc[row_index +
+                                                     1]['Raw material']
+                raw_material_items = finished_good_df.iloc[(
+                    row_index - no_of_secondary_rawmaterial):(row_index + 1)]
+                save_bom(
+                    raw_material,
+                    raw_material_items,
+                    workbook
+                )
+                no_of_secondary_rawmaterial = 0
+            else:
+                no_of_secondary_rawmaterial += 1
 
 # remove Sheet that is created by default
-workbook.remove(workbook['Sheet']) 
+workbook.remove(workbook['Sheet'])
 workbook.save(filename=OUTPUT_EXCEL)
